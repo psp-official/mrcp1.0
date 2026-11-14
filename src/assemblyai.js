@@ -52,8 +52,10 @@ async function createTranscript(apiKey, uploadUrl) {
       audio_url: uploadUrl,
       language_detection: true, // auto-detect (e.g. Chinese donghua audio)
       speaker_labels: true, // diarization: who is speaking
-      word_timestamps: true, // word-level start/end for scene splitting
       punctuate: true,
+      // NOTE: there is no `word_timestamps` option in AssemblyAI's API —
+      // words are returned with start/end timestamps by default. Sending it
+      // caused a 400 "Invalid endpoint schema" error.
     }),
   });
   await assertOk(res, 'AssemblyAI transcript request');
