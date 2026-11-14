@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recap Studio — Video Recap Maker</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🎬 Recap Studio</div>
+  <div class="tagline">Video ကို Dialogue Recap Video အဖြစ် ပြောင်းပေးမယ်</div>
+</header>
+
+<main class="container">
+
+  <!-- Upload -->
+  <section class="card" id="upload-card">
+    <h2>1 · Video တင်ပါ</h2>
+    <div id="dropzone" class="dropzone">
+      <div class="dz-icon">📤</div>
+      <p><strong>Video ကို ဒီနေရာမှာ ချပါ</strong> သို့မဟုတ် နှိပ်ပြီး ရွေးပါ</p>
+      <p class="hint">MP4 / MOV / MKV / WEBM — အများဆုံး 500 MB (အပိုင်းလိုက် upload လုပ်ပါတယ်)</p>
+      <input type="file" id="file-input" accept="video/*" hidden>
+    </div>
+    <div id="file-info" class="file-info" hidden>
+      <video id="preview-video" controls muted playsinline></video>
+      <div class="file-meta">
+        <div id="file-name"></div>
+        <div id="file-size"></div>
+        <div id="file-duration"></div>
+        <button class="btn btn-ghost" id="clear-file">✕ ဖျက်မယ်</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Settings -->
+  <section class="card">
+    <h2>2 · Settings &amp; API Keys</h2>
+    <p class="hint">Key တွေကို ဒီ browser ထဲမှာပဲ သိမ်းပါတယ် (localStorage)။ Server ပေါ်မှာ လုံးဝမသိမ်းပါဘူး။</p>
+
+    <label class="field">
+      <span>AssemblyAI API Key <em>(အသံ → စာသား)</em></span>
+      <input type="password" id="key-assemblyai" placeholder="AssemblyAI key ထည့်ပါ" autocomplete="off">
+    </label>
+    <label class="field">
+      <span>OpenRouter API Key <em>(recap script ရေးဖို့)</em></span>
+      <input type="password" id="key-openrouter" placeholder="OpenRouter key ထည့်ပါ" autocomplete="off">
+    </label>
+    <div class="row">
+      <button class="btn btn-secondary" id="test-keys">🔑 Key တွေ စမ်းကြည့်မယ်</button>
+      <span id="key-status" class="key-status"></span>
+    </div>
+    <p class="hint small">
+      AssemblyAI — အကောင့်သစ်မှာ $50 free credit ရတယ် (<a href="https://www.assemblyai.com/" target="_blank" rel="noopener">assemblyai.com</a>) ·
+      OpenRouter — <code>:free</code> model တွေက အခမဲ့ပါ၊ တစ်နေ့ 50 requests (<a href="https://openrouter.ai/" target="_blank" rel="noopener">openrouter.ai</a>)
+    </p>
+
+    <div class="grid2">
+      <label class="field">
+        <span>Recap Model</span>
+        <select id="model-select"></select>
+        <input type="text" id="model-custom" placeholder="Custom model (ဥပမာ openai/gpt-oss-20b:free)" hidden>
+        <button class="btn btn-ghost small" id="model-toggle" type="button">Custom model သုံးမယ်</button>
+      </label>
+      <label class="field">
+        <span>Recap Style</span>
+        <select id="style-select">
+          <option value="dialogue">Dialogue + Narrator (ဇာတ်ကောင်စကားပြော + နာရေးတာ)</option>
+          <option value="narration">Narration only (နာရေးတာပဲ)</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Recap ဘာသာစကား</span>
+        <select id="lang-select">
+          <option value="Burmese">မြန်မာ (Burmese)</option>
+          <option value="English">English</option>
+          <option value="Chinese">中文 (Chinese)</option>
+        </select>
+      </label>
+    </div>
+
+    <button class="btn btn-primary big" id="start-btn" disabled>✨ Recap Video ထုတ်မယ်</button>
+    <p class="hint small" id="start-hint">Video တစ်ခုရွေးပြီးရင် စလို့ရပါပြီ။</p>
+  </section>
+
+  <!-- Progress -->
+  <section class="card" id="progress-card" hidden>
+    <h2>3 · လုပ်ဆောင်နေတယ်</h2>
+    <div class="progress-bar"><div id="progress-fill"></div></div>
+    <div id="progress-label" class="progress-label">စောင့်နေတယ်…</div>
+    <ol id="steps" class="steps">
+      <li data-step="probe">Video စစ်ဆေးနေတယ်</li>
+      <li data-step="audio">အသံထုတ်ယူနေတယ်</li>
+      <li data-step="transcribe">အသံကို စာသားပြောင်းနေတယ်</li>
+      <li data-step="segment">Scene တွေခွဲနေတယ်</li>
+      <li data-step="script">Recap script ရေးနေတယ်</li>
+      <li data-step="keyframes">Keyframe တွေထုတ်နေတယ်</li>
+      <li data-step="subtitles">စာတန်းထိုး ထည့်နေတယ်</li>
+      <li data-step="done">ပြီးပြီ!</li>
+    </ol>
+    <details class="logs"><summary>Log ကြည့်မယ်</summary><pre id="log-box"></pre></details>
+    <div id="error-box" class="error" hidden></div>
+  </section>
+
+  <!-- Results -->
+  <section class="card" id="result-card" hidden>
+    <h2>4 · ရလဒ်</h2>
+    <video id="result-video" controls playsinline></video>
+    <div class="row wrap">
+      <button class="btn btn-primary" id="dl-video">⬇ Video Download</button>
+      <button class="btn" id="dl-srt">⬇ Subtitles (.srt)</button>
+      <button class="btn" id="dl-script">⬇ Script (.txt)</button>
+    </div>
+
+    <h3>Scene Keyframes</h3>
+    <div id="keyframes" class="keyframes"></div>
+
+    <h3>Recap Script ပြင်မယ်</h3>
+    <p class="hint">စာသားပြင်ပြီး "စာတန်းထိုး ပြန်ထည့်မယ်" ကို နှိပ်ရင် video အသစ်ပြန်ထွက်လာမယ်။</p>
+    <textarea id="script-editor" rows="10" spellcheck="false"></textarea>
+    <div class="row">
+      <button class="btn btn-secondary" id="rerender-btn">🔄 စာတန်းထိုး ပြန်ထည့်မယ်</button>
+      <span id="rerender-status" class="key-status"></span>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>⚠️ v1 မှာ မြန်မာ voiceover မပါသေးပါ — စာတန်းထိုး + script ပဲထုတ်ပေးပါတယ်။ Voiceover လိုချင်ရင် Narakeet / CapCut မှာ script ကို အသံပြောင်းပြီး ထည့်လို့ရပါတယ်။</p>
+    <p>Job ပြီးပြီး 1 နာရီကြာရင် file တွေကို server က အလိုအလျောက် ဖျက်ပါတယ်။</p>
+  </footer>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
