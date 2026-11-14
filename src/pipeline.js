@@ -22,6 +22,13 @@ const STEP_PROGRESS = {
   done: 100,
 };
 
+/** Format seconds as m:ss for progress logs. */
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
 /**
  * Run a full recap job. `job.options` holds:
  * { assemblyaiKey, openrouterKey, models, language, style }
@@ -114,7 +121,22 @@ async function runJob(job) {
   fs.writeFileSync(assPath, subs.buildAss(lines, { width: info.width, height: info.height }), 'utf8');
   fs.writeFileSync(scriptPath, subs.buildScriptTxt(lines), 'utf8');
   log(job, 'စာတန်းထိုးကို video ထဲ ထည့်နေတယ်…');
-  await media.burnSubtitles(input, assPath, output, config.FONT_DIR);
+  // Show live progress (95 -> 99%) + a log line every ~30s, so a long
+  // burn on a small server never looks frozen. Timeout scales with length:
+  // at least 20 min, or 20x the video duration, whichever is larger.
+  let lastLogAt = 0;
+  await media.burnSubtitles(input, assPath, output, config.FONT_DIR, {
+    timeoutMs: Math.max(20 * 60 * 1000, info.duration * 20 * 1000),
+    onProgress: (sec) => {
+      const pct = Math.min(99, 95 + (sec / info.duration) * 4);
+      setStep(job, 'subtitles', Math.round(pct));
+      const now = Date.now();
+      if (now - lastLogAt > 30000) {
+        lastLogAt = now;
+        log(job, `စာတန်းထိုး ထည့်နေတယ်… ${fmtTime(sec)} / ${fmtTime(info.duration)}`);
+      }
+    },
+  });
   const outInfo = await media.probe(output);
   if (!outInfo.duration) throw new Error('Output video ထုတ်မရပါ');
 
@@ -159,7 +181,9 @@ async function rerenderJob(job, lines) {
   fs.writeFileSync(srtPath, subs.buildSrt(clean), 'utf8');
   fs.writeFileSync(assPath, subs.buildAss(clean, { width: info.width, height: info.height }), 'utf8');
   fs.writeFileSync(scriptPath, subs.buildScriptTxt(clean), 'utf8');
-  await media.burnSubtitles(input, assPath, tmpOutput, config.FONT_DIR);
+  await media.burnSubtitles(input, assPath, tmpOutput, config.FONT_DIR, {
+    timeoutMs: Math.max(20 * 60 * 1000, info.duration * 20 * 1000),
+  });
   fs.renameSync(tmpOutput, output);
   job.result.lines = clean;
   job.result.srt = 'recap.srt';
