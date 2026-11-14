@@ -1,0 +1,32 @@
+# Render Blueprint — deploy Recap Studio with one click.
+# Push this repo to GitHub, then in Render: New -> Blueprint -> pick the repo.
+# Render reads this file and creates the web service + disk automatically.
+services:
+  - type: web
+    name: recap-studio
+    runtime: docker
+    # "starter" is the cheapest paid plan that supports a persistent disk.
+    # Upgrade to "standard" or higher if you process many/long videos.
+    plan: starter
+    healthCheckPath: /api/health
+    # Persistent disk for uploaded videos + rendered outputs.
+    # A 500 MB input + rendered output + audio + keyframes can exceed 1 GB,
+    # so 5 GB is the safe minimum.
+    disk:
+      name: recap-data
+      mountPath: /data
+      sizeGB: 5
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WORK_DIR
+        value: /data/jobs
+      - key: FONT_DIR
+        value: /usr/share/fonts/truetype/noto
+      - key: RECAP_MOCK
+        value: "0"
+      # API keys are NOT set here on purpose: users enter them in the
+      # website's Settings page (browser localStorage, sent per job).
+      # If you want server-side defaults, add them in the Render dashboard
+      # as secret env vars instead:
+      #   ASSEMBLYAI_API_KEY, OPENROUTER_API_KEY, OPENROUTER_MODEL
